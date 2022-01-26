@@ -99,7 +99,10 @@
 								tenlines.shift();
 							}
 							var tenlinesfinal = tenlines.join('');
-							messages += "<p begin='"+loffsetstart+"' end='"+loffsetend+"' region='b'>"+tenlinesfinal+"</p>\n";
+							if(loffsetstart != loffsetend){
+								messages += "<p begin='"+loffsetstart+"' end='"+loffsetend+"' region='b'>"+tenlinesfinal+"</p>\n";
+							}
+							
 						}
 						
 						
