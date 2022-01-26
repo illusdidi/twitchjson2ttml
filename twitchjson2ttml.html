@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Twitch chat json to ttml file for YouTube subtitles</title>
+	<style>
+		.starttimeinput{
+			padding: 10px;
+			font-size: 20px;
+			font-weight: bold;
+			background-color: #262626;
+			color: #d1d1d1;
+		}
+		body{
+			background-color: #121212;
+			color: #d1d1d1;
+			font-family: Arial, Helvetica, sans-serif;
+		}
+		#submitjson{
+			padding: 10px 30px;
+			font-weight: bold;
+			background-color: #9aff7e;
+			border: 0;
+			border-radius: 100px;
+			cursor: pointer;
+			font-size: 18px;
+			vertical-align: super;
+		}
+		#inputfile{
+			width: 500px;
+			background-color: #262626;
+			padding: 15px;
+			font-size: 18px;
+		}
+		h1{
+			display: inline-block;
+			margin : 20px;
+		}
+	</style>
+  </head>
+  <body>
+	<h1>Twitchjson2ttml</h1>
+	<br/>
+	<h1>1.</h1>
+	<label for="tentacles">Start time (if cropped chat): </label>
+	<input class="starttimeinput" id="starttimeh" type="number" min="0" max="99" value="0"/> h <input class="starttimeinput" id="starttimem" type="number" min="0" max="60" value="0"/> m <input class="starttimeinput" id="starttimes" type="number" min="0" max="60" value="0"/> s
+	<br/>
+	<h1>2.</h1>
+	<input type="file" id="inputfile">
+	<br/>
+	<h1>3.</h1>
+	<button id="submitjson" type="button">Convert</button>
+	 <script>
+		document.getElementById("submitjson").addEventListener("click", convertplz);
+		
+		function convertplz() {	
+			var messages = "";
+			var tenlines = [];
+			var getjson = "";
+			
+			var starttime = parseInt(document.getElementById("starttimeh").value) * 3600 + parseInt(document.getElementById("starttimem").value) * 60 + parseInt(document.getElementById("starttimes").value);
+			var messageduration = 20; //in seconds
+			var maxlines = 8; 
+			
+			var file = document.getElementById("inputfile").files[0];
+			if (file) {
+				var reader = new FileReader();
+				reader.readAsText(file, "UTF-8");
+				reader.onload = function (evt) {
+					getjson = JSON.parse(evt.target.result);
+					
+					for (var i = 0; i < getjson['comments'].length; i++){
+						var lemessage = getjson['comments'][i]['message']['body'];
+						var lacouleur = getjson['comments'][i]['message']['user_color'];
+						if (lacouleur == null){
+							lacouleur = '#9146FF';
+						}
+						else{
+							//lacouleur = lacouleur.substring(1);
+						}
+						
+						var lauteur = getjson['comments'][i]['commenter']['display_name'];
+						var loffset = getjson['comments'][i]['content_offset_seconds'];
+						loffset -= starttime;
+						if(loffset < 0){
+							//do nothing
+						}
+						else{
+							loffsetstart = sec2time(loffset);
+							if(getjson['comments'][i+1] == null){
+								loffsetend = sec2time(loffset+messageduration);
+							}
+							else{
+								loffsetend = sec2time(getjson['comments'][i+1]['content_offset_seconds'] - starttime);
+							}
+							var ligne = "<span tts:color='"+lacouleur+"'>"+lauteur+":</span> "+lemessage+"<br/>";
+							tenlines.push(ligne);
+							if(tenlines.length > maxlines){
+								tenlines.shift();
+							}
+							var tenlinesfinal = tenlines.join('');
+							messages += "<p begin='"+loffsetstart+"' end='"+loffsetend+"' region='b'>"+tenlinesfinal+"</p>\n";
+						}
+						
+						
+					}
+					
+					var finaltext = "<?xml version='1.0' encoding='utf-8'?><tt xmlns='http://www.w3.org/ns/ttml' xmlns:ttp='http://www.w3.org/ns/ttml#parameter' ttp:timeBase='media' xmlns:tts='http://www.w3.org/ns/ttml#styling' xml:lang='en' xmlns:ttm='http://www.w3.org/ns/ttml#metadata'>  <head>    <metadata>      <ttm:title></ttm:title>    </metadata>    <styling>      <style xml:id='s0' tts:backgroundColor='black' tts:fontStyle='normal' tts:fontSize='16px' tts:fontFamily='sansSerif' tts:color='white' />    </styling>    <layout>      <region tts:extent='80% 40%' tts:origin='10% 50%' tts:displayAlign='after' tts:textAlign='left' xml:id='b' />    </layout>  </head>  <body style='s0'>    <div>" + messages + "    </div>  </body></tt>";
+					var filename = file.name.split('.')[0] + ".ttml";
+					download(filename, finaltext)
+			
+			
+			
+				}
+				reader.onerror = function (evt) {
+					alert("error reading file");
+				}
+			}
+			else{
+				alert("No file");
+			}
+
+			
+		
+		
+		}
+		
+		
+		
+		function download(filename, text) {
+			var element = document.createElement('a');
+			element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+			element.setAttribute('download', filename);
+
+			element.style.display = 'none';
+			document.body.appendChild(element);
+
+			element.click();
+
+			document.body.removeChild(element);
+		}
+		
+		
+		function sec2time(timeInSeconds) {
+			var pad = function(num, size) { return ('000' + num).slice(size * -1); },
+			time = parseFloat(timeInSeconds).toFixed(3),
+			hours = Math.floor(time / 60 / 60),
+			minutes = Math.floor(time / 60) % 60,
+			seconds = Math.floor(time - minutes * 60),
+			milliseconds = time.slice(-3);
+
+			return pad(hours, 2) + ':' + pad(minutes, 2) + ':' + pad(seconds, 2) + '.' + pad(milliseconds, 3);
+		}
+	</script>
+  </body>
+</html>
